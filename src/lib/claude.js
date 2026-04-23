@@ -1,38 +1,4 @@
-const ANTHROPIC_KEY = process.env.REACT_APP_ANTHROPIC_KEY
-
-export function buildSystemPrompt(opp) {
-  return `You are a senior federal business development strategist and capture manager helping a government contractor win federal contracts. You have deep expertise in USDA, federal procurement, 8(a) programs, STARS III, MAS schedules, GSA vehicles, proposal writing, and BD strategy.
-
-You are currently working on the following opportunity:
-
-OPPORTUNITY DETAILS:
-- Title: ${opp.title}
-- Agency: ${opp.agency || 'Not specified'}
-- Contract Number: ${opp.contract_number || 'Not specified'}
-- Vehicle: ${opp.vehicle || 'Not specified'}
-- Value: ${opp.value ? '$' + Number(opp.value).toLocaleString() : 'Not specified'}
-- Expiry: ${opp.expiry || 'Not specified'}
-- Stage: ${opp.stage}
-- Priority: ${opp.priority}
-- Incumbent: ${opp.incumbent || 'None'}
-- Capture Strategy: ${opp.strategy || 'Not yet defined'}
-
-KEY CONTACTS:
-${opp.contacts && opp.contacts.length > 0
-  ? opp.contacts.map(c => `- ${c.name} (${c.role}): ${c.email}`).join('\n')
-  : '- No contacts added yet'}
-
-Your role is to help the BD team with:
-1. Capture strategy and win themes
-2. Drafting professional emails to Contracting Officers and program offices
-3. Analyzing contract/PWS documents
-4. Generating specific action items
-5. Competitive intelligence on the incumbent
-6. Proposal outlines and section drafts
-
-Always be specific, practical, and tailored to the exact opportunity above. Never give generic advice. Reference actual contract details, agency context, and procurement specifics in your responses. When drafting emails, use the actual contact names and email addresses provided. Keep responses focused and actionable.`
-}
-
+// ── Quick Prompts ─────────────────────────────────────────────────────────────
 export const QUICK_PROMPTS = [
   {
     id: 'strategy',
@@ -72,18 +38,46 @@ export const QUICK_PROMPTS = [
   }
 ]
 
+// ── System Prompt Builder ─────────────────────────────────────────────────────
+export function buildSystemPrompt(opp) {
+  return `You are a senior federal business development strategist and capture manager helping a government contractor win federal contracts. You have deep expertise in USDA, federal procurement, 8(a) programs, STARS III, MAS schedules, GSA vehicles, proposal writing, and BD strategy.
+
+You are currently working on the following opportunity:
+
+OPPORTUNITY DETAILS:
+- Title: ${opp.title}
+- Agency: ${opp.agency || 'Not specified'}
+- Contract Number: ${opp.contract_number || 'Not specified'}
+- Vehicle: ${opp.vehicle || 'Not specified'}
+- Value: ${opp.value ? '$' + Number(opp.value).toLocaleString() : 'Not specified'}
+- Expiry: ${opp.expiry || 'Not specified'}
+- Stage: ${opp.stage}
+- Priority: ${opp.priority}
+- Incumbent: ${opp.incumbent || 'None'}
+- Capture Strategy: ${opp.strategy || 'Not yet defined'}
+
+KEY CONTACTS:
+${opp.contacts && opp.contacts.length > 0
+  ? opp.contacts.map(c => `- ${c.name} (${c.role}): ${c.email}`).join('\n')
+  : '- No contacts added yet'}
+
+Your role is to help the BD team with:
+1. Capture strategy and win themes
+2. Drafting professional emails to Contracting Officers and program offices
+3. Analyzing contract/PWS documents
+4. Generating specific action items
+5. Competitive intelligence on the incumbent
+6. Proposal outlines and section drafts
+
+Always be specific, practical, and tailored to the exact opportunity above. Never give generic advice. Reference actual contract details, agency context, and procurement specifics in your responses. When drafting emails, use the actual contact names and email addresses provided. Keep responses focused and actionable.`
+}
+
+// ── API Calls (via Vercel serverless proxy) ───────────────────────────────────
 export async function sendMessage(messages, systemPrompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-client-side-allow-unsafe': 'true'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2048,
       system: systemPrompt,
       messages: messages.map(m => ({ role: m.role, content: m.content }))
     })
@@ -91,11 +85,11 @@ export async function sendMessage(messages, systemPrompt) {
 
   if (!response.ok) {
     const err = await response.json()
-    throw new Error(err.error?.message || 'API error')
+    throw new Error(err.error || 'API error')
   }
 
   const data = await response.json()
-  return data.content[0].text
+  return data.content
 }
 
 export async function sendMessageWithFile(messages, systemPrompt, fileBase64, fileType) {
@@ -108,17 +102,10 @@ export async function sendMessageWithFile(messages, systemPrompt, fileBase64, fi
     { type: 'text', text: lastUserMsg.content }
   ]
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-client-side-allow-unsafe': 'true'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2048,
       system: systemPrompt,
       messages: [
         ...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
@@ -129,9 +116,9 @@ export async function sendMessageWithFile(messages, systemPrompt, fileBase64, fi
 
   if (!response.ok) {
     const err = await response.json()
-    throw new Error(err.error?.message || 'API error')
+    throw new Error(err.error || 'API error')
   }
 
   const data = await response.json()
-  return data.content[0].text
+  return data.content
 }
