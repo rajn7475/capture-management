@@ -5,6 +5,7 @@ const STAGES = ['Identified','Qualifying','Capture','Bid/No-Bid','Proposing','Su
 const STAGE_COLOR = { Identified:'gray',Qualifying:'blue',Capture:'purple','Bid/No-Bid':'amber',Proposing:'amber',Submitted:'blue',Won:'green',Lost:'red' }
 
 export default function OppCard({ opp, userId, myActions, noteContent, today, weekEnd, isAdmin, fmtVal,
+  companyContext, teamMembers, currentUserName,
   onEdit, onDelete, onStageChange, onAddAction, onToggleAction, onDeleteAction,
   onLoadNote, onSaveNote, onAddGeneratedActions }) {
 
@@ -13,6 +14,7 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
   const [noteVal, setNoteVal] = useState(null)
   const [newAction, setNewAction] = useState('')
   const [newDue, setNewDue] = useState(today)
+  const [newAssignee, setNewAssignee] = useState(userId) // default: assign to self
 
   function daysTo(d) { return d ? Math.ceil((new Date(d) - new Date(today)) / 864e5) : null }
 
@@ -34,31 +36,32 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
 
   function handleTabClick(t) {
     setTab(t)
-    if (t === 'notes' && noteContent === undefined) {
-      onLoadNote()
-    }
-    if (t === 'notes' && noteVal === null && noteContent !== undefined) {
-      setNoteVal(noteContent || '')
-    }
+    if (t === 'notes' && noteContent === undefined) onLoadNote()
+    if (t === 'notes' && noteVal === null && noteContent !== undefined) setNoteVal(noteContent || '')
   }
 
-  // sync note value when noteContent loads
   React.useEffect(() => {
-    if (tab === 'notes' && noteVal === null && noteContent !== undefined) {
-      setNoteVal(noteContent)
-    }
+    if (tab === 'notes' && noteVal === null && noteContent !== undefined) setNoteVal(noteContent)
   }, [noteContent, tab, noteVal])
 
   function handleAddAction() {
     if (!newAction.trim()) return
-    onAddAction(newAction.trim(), newDue)
+    // Find assignee name
+    const assignee = teamMembers?.find(m => m.id === newAssignee)
+    const assigneeName = assignee?.full_name || currentUserName || 'Me'
+    onAddAction(newAction.trim(), newDue, newAssignee, assigneeName)
     setNewAction('')
     setNewDue(today)
+    setNewAssignee(userId)
+  }
+
+  function memberInitials(name) {
+    if (!name) return '?'
+    return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   }
 
   return (
     <div className={`opp-card ${opp.priority?.toLowerCase()}`}>
-      {/* Card header */}
       <div className="card-top" onClick={() => setOpen(o => !o)}>
         <span className={`chevron ${open ? 'open' : ''}`}>▶</span>
         <div className="card-meta">
@@ -79,7 +82,6 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
         </div>
       </div>
 
-      {/* Expanded body */}
       {open && (
         <div className="card-body">
           <div className="tabs">
@@ -112,21 +114,18 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
                   </div>
                 ))}
               </div>
-
               <div className="stage-row">
                 <span className="info-lbl">Stage:</span>
                 <select className="stage-sel" value={opp.stage} onChange={e => onStageChange(e.target.value)}>
                   {STAGES.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
-
               {opp.strategy && (
                 <div className="strategy-box">
                   <div className="strategy-lbl">Capture Strategy</div>
                   <div className="strategy-text">{opp.strategy}</div>
                 </div>
               )}
-
               {opp.contacts?.length > 0 && (
                 <div className="contacts-section">
                   <div className="strategy-lbl">Key Contacts</div>
@@ -142,7 +141,6 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
                   ))}
                 </div>
               )}
-
               {isAdmin && (
                 <div className="card-actions-row">
                   <button className="btn" onClick={onEdit}>✎ Edit</button>
@@ -156,7 +154,7 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
           {tab === 'actions' && (
             <div className="pane">
               {myActions.length === 0 && (
-                <p className="empty-hint">No actions yet. Add one below or use <strong>Ask Claude</strong> to generate them.</p>
+                <p className="empty-hint">No actions yet. Add one below or use <strong>✦ Ask Claude</strong> to generate them automatically.</p>
               )}
               <div className="actions-list">
                 {myActions.map(a => {
@@ -166,23 +164,49 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
                       <input type="checkbox" className="action-chk" checked={a.done} onChange={() => onToggleAction(a.id)} />
                       <div className="action-body">
                         <div className="action-text">{a.text}</div>
-                        {a.due_date && (
-                          <div className={`action-due ${late ? 'late' : ''}`}>
-                            {late ? 'Overdue – ' : 'Due '}
-                            {new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </div>
-                        )}
+                        <div className="action-meta-row">
+                          {a.due_date && (
+                            <div className={`action-due ${late ? 'late' : ''}`}>
+                              📅 {late ? 'Overdue – ' : ''}{new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </div>
+                          )}
+                          {a.assigned_name && (
+                            <div className="action-assignee">
+                              <div className="action-assignee-avatar">{memberInitials(a.assigned_name)}</div>
+                              {a.assigned_name}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <button className="action-del" onClick={() => onDeleteAction(a.id)}>×</button>
                     </div>
                   )
                 })}
               </div>
-              <div className="add-action-row">
-                <input type="text" value={newAction} onChange={e => setNewAction(e.target.value)}
-                  placeholder="Add action item…" onKeyDown={e => e.key === 'Enter' && handleAddAction()} />
-                <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} />
-                <button className="btn primary" onClick={handleAddAction}>Add</button>
+
+              {/* Add action form */}
+              <div className="add-action-form-full">
+                <input type="text" className="add-action-input" value={newAction}
+                  onChange={e => setNewAction(e.target.value)}
+                  placeholder="Add action item…"
+                  onKeyDown={e => e.key === 'Enter' && handleAddAction()} />
+                <div className="add-action-meta">
+                  <div className="add-action-field">
+                    <label>Due Date</label>
+                    <input type="date" value={newDue} onChange={e => setNewDue(e.target.value)} />
+                  </div>
+                  <div className="add-action-field">
+                    <label>Assigned To</label>
+                    <select value={newAssignee} onChange={e => setNewAssignee(e.target.value)}>
+                      {teamMembers?.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.full_name || m.email || 'Unknown'}{m.id === userId ? ' (me)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button className="btn primary" onClick={handleAddAction}>Add</button>
+                </div>
               </div>
             </div>
           )}
@@ -198,9 +222,10 @@ export default function OppCard({ opp, userId, myActions, noteContent, today, we
             </div>
           )}
 
-          {/* Claude Chat */}
+          {/* Claude */}
           {tab === 'claude' && (
             <ClaudeChat opp={opp} userId={userId} today={today}
+              companyContext={companyContext}
               onAddGeneratedActions={onAddGeneratedActions} />
           )}
         </div>
