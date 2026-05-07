@@ -1,59 +1,53 @@
 // ── Quick Prompts ─────────────────────────────────────────────────────────────
 export const QUICK_PROMPTS = [
-  {
-    id: 'strategy',
-    label: '🎯 Win Strategy',
-    icon: '🎯',
-    prompt: 'Analyze this opportunity and give me a detailed win strategy. What are our top 3 win themes, key discriminators, and what should we be doing right now to position ourselves to win?'
-  },
-  {
-    id: 'email',
-    label: '✉️ Draft CO Email',
-    icon: '✉️',
-    prompt: 'Draft a professional introductory email to the Contracting Officer for this opportunity. The goal is to introduce our company, reference our relevant past performance, and request a brief capability briefing or industry day meeting. Keep it concise and compelling.'
-  },
-  {
-    id: 'actions',
-    label: '✅ Generate Actions',
-    icon: '✅',
-    prompt: 'Based on the current stage and details of this opportunity, generate a specific list of 6-8 actionable capture steps I should take over the next 30-60 days. Format each as a clear, executable action with a suggested due date.'
-  },
-  {
-    id: 'intel',
-    label: '🔍 Incumbent Intel',
-    icon: '🔍',
-    prompt: 'Analyze what we know about the incumbent on this opportunity. What are their likely strengths, vulnerabilities, and how should we position against them? What intelligence should we be gathering about them?'
-  },
-  {
-    id: 'proposal',
-    label: '📄 Proposal Outline',
-    icon: '📄',
-    prompt: 'Create a detailed proposal outline for this opportunity. Include recommended sections, key themes to address in each section, and specific win themes we should weave throughout. Tailor it to the agency and scope of work.'
-  },
-  {
-    id: 'pws',
-    label: '📋 Analyze PWS',
-    icon: '📋',
-    prompt: 'Help me analyze the scope of work for this opportunity. Based on what you know, what are the key technical requirements, staffing implications, likely evaluation criteria, and any risks or opportunities I should be aware of?'
-  }
+  { id: 'strategy', label: '🎯 Win Strategy', icon: '🎯',
+    prompt: 'Analyze this opportunity and give me a detailed win strategy. Use Ark\'s capabilities, past performance, and certifications to identify our top 3 win themes and key discriminators. What should we be doing right now to position ourselves to win?' },
+  { id: 'fit', label: '📊 Fit Analysis', icon: '📊',
+    prompt: 'Analyze how well Ark\'s capabilities and past performance align with this opportunity. Give me a fit score (1-10) with reasoning, identify any gaps, and recommend whether we should pursue, team, or pass.' },
+  { id: 'email', label: '✉️ Draft CO Email', icon: '✉️',
+    prompt: 'Draft a professional introductory email to the Contracting Officer for this opportunity. Reference Ark\'s relevant past performance and capabilities. Request a brief capability briefing. Keep it concise and compelling.' },
+  { id: 'actions', label: '✅ Generate Actions', icon: '✅',
+    prompt: 'Based on the current stage and details of this opportunity, generate a specific list of 6-8 actionable capture steps for the next 30-60 days. Format each as a clear, executable action with a suggested due date.' },
+  { id: 'teaming', label: '🤝 Teaming Analysis', icon: '🤝',
+    prompt: 'Based on Ark\'s capabilities and this opportunity\'s requirements, identify any gaps where we need teaming partners. Review our known partners and recommend the best teaming strategy. If we have partners that fill the gaps, name them specifically.' },
+  { id: 'intel', label: '🔍 Incumbent Intel', icon: '🔍',
+    prompt: 'Analyze what we know about the incumbent on this opportunity. What are their likely strengths, vulnerabilities, and how should Ark position against them? What intelligence should we be gathering?' },
+  { id: 'proposal', label: '📄 Proposal Outline', icon: '📄',
+    prompt: 'Create a detailed proposal outline for this opportunity tailored to Ark\'s capabilities. Include recommended sections, key themes, and specific win themes to weave throughout.' },
+  { id: 'pws', label: '📋 Analyze PWS', icon: '📋',
+    prompt: 'Help me analyze the scope of work for this opportunity. What are the key technical requirements, staffing implications, likely evaluation criteria, and how does Ark\'s profile align?' }
 ]
 
 // ── System Prompt Builder ─────────────────────────────────────────────────────
-export function buildSystemPrompt(opp) {
-  return `You are a senior federal business development strategist and capture manager helping a government contractor win federal contracts. You have deep expertise in USDA, federal procurement, 8(a) programs, STARS III, MAS schedules, GSA vehicles, proposal writing, and BD strategy.
+export function buildSystemPrompt(opp, companyContext = null) {
+  const companySection = companyContext ? `
+COMPANY PROFILE (ARK):
+${companyContext.capability || 'No capability statement uploaded yet.'}
 
-You are currently working on the following opportunity:
+ARK PAST PERFORMANCE:
+${companyContext.pastPerformance || 'No past performance documents uploaded yet.'}
 
-OPPORTUNITY DETAILS:
+TEAMING PARTNERS:
+${companyContext.partners || 'No teaming partners added yet.'}
+` : `
+COMPANY PROFILE (ARK):
+No company documents have been uploaded yet. Ask the admin to upload capability statement, past performance, and partner documents in Company Settings.
+`
+
+  return `You are a senior federal business development strategist and capture manager working exclusively for Ark, a government IT contractor. You have deep expertise in USDA, federal procurement, 8(a) programs, STARS III, MAS schedules, GSA vehicles, proposal writing, and BD strategy.
+
+${companySection}
+
+CURRENT OPPORTUNITY:
 - Title: ${opp.title}
 - Agency: ${opp.agency || 'Not specified'}
-- Contract Number: ${opp.contract_number || 'Not specified'}
+- Contract #: ${opp.contract_number || 'Not specified'}
 - Vehicle: ${opp.vehicle || 'Not specified'}
 - Value: ${opp.value ? '$' + Number(opp.value).toLocaleString() : 'Not specified'}
 - Expiry: ${opp.expiry || 'Not specified'}
 - Stage: ${opp.stage}
 - Priority: ${opp.priority}
-- Incumbent: ${opp.incumbent || 'None'}
+- Incumbent: ${opp.incumbent || 'None identified'}
 - Capture Strategy: ${opp.strategy || 'Not yet defined'}
 
 KEY CONTACTS:
@@ -61,15 +55,13 @@ ${opp.contacts && opp.contacts.length > 0
   ? opp.contacts.map(c => `- ${c.name} (${c.role}): ${c.email}`).join('\n')
   : '- No contacts added yet'}
 
-Your role is to help the BD team with:
-1. Capture strategy and win themes
-2. Drafting professional emails to Contracting Officers and program offices
-3. Analyzing contract/PWS documents
-4. Generating specific action items
-5. Competitive intelligence on the incumbent
-6. Proposal outlines and section drafts
-
-Always be specific, practical, and tailored to the exact opportunity above. Never give generic advice. Reference actual contract details, agency context, and procurement specifics in your responses. When drafting emails, use the actual contact names and email addresses provided. Keep responses focused and actionable.`
+INSTRUCTIONS:
+- Always analyze opportunities in the context of Ark's specific capabilities, past performance, and certifications
+- When recommending teaming, reference specific partners from Ark's partner list when they fill capability gaps
+- Be specific, practical, and tailored — never give generic advice
+- Reference actual contract details, agency context, and procurement specifics
+- When drafting emails, use the actual contact names and email addresses provided
+- Always consider Ark's competitive positioning vs the incumbent`
 }
 
 // ── API Calls (via Vercel serverless proxy) ───────────────────────────────────
