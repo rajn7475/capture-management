@@ -55,7 +55,7 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 /* ── Shell ─────────────────────────────────────────────────────────────────── */
 .shell { display: flex; min-height: 100vh; }
 .sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; }
-.main { margin-left: 230px; flex: 1; padding: 28px 32px; max-width: 980px; }
+.main { margin-left: 230px; flex: 1; padding: 28px 32px;}
 
 /* ── Sidebar ───────────────────────────────────────────────────────────────── */
 .sidebar-logo { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); }
