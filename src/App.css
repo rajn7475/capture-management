@@ -55,7 +55,7 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 /* ── Shell ─────────────────────────────────────────────────────────────────── */
 .shell { display: flex; min-height: 100vh; }
 .sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; }
-.main { margin-left: 230px; flex: 1; padding: 28px 32px;}
+.main { margin-left: 230px; flex: 1; padding: 28px 32px; overflow-x: hidden; }
 
 /* ── Sidebar ───────────────────────────────────────────────────────────────── */
 .sidebar-logo { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); }
@@ -287,8 +287,9 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 /* ── Kanban Board ─────────────────────────────────────────────────────────── */
 .kanban-view { padding: 0; }
 .kanban-board {
+  width: 100%;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(160px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
   overflow-x: auto;
@@ -349,6 +350,7 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 .kanban-incumbent { font-size: 10px; color: #9b9b94; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kanban-empty { font-size: 11px; color: #c0bfb8; text-align: center; padding: 20px 0; }
 .kanban-won-lost {
+  width: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -478,3 +480,114 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 .b-blue { background: #E6F1FB; color: #185FA5; }
 .b-purple { background: #EEEDFE; color: #534AB7; }
 .b-gray { background: #F1EFE8; color: #5F5E5A; }
+
+/* ── View width constraints ───────────────────────────────────────────────── */
+.pipeline-view, .brief-view, .contacts-view-wrap { max-width: 960px; }
+.kanban-view { width: 100%; }
+.settings-view { max-width: 900px; }
+
+/* ── Pending Actions Panel ────────────────────────────────────────────────── */
+.pending-actions-panel {
+  background: #EAF3DE;
+  border: 1px solid rgba(29,158,117,0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 8px 0;
+}
+.pending-actions-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.pending-actions-icon { font-size: 20px; flex-shrink: 0; }
+.pending-actions-title { font-size: 14px; font-weight: 600; color: #1a1a18; }
+.pending-actions-sub { font-size: 12px; color: #6b6b65; }
+.pending-actions-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.pending-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.pending-action-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3B6D11;
+  width: 18px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.pending-action-text { flex: 1; font-size: 13px; color: #1a1a18; line-height: 1.4; }
+.pending-action-due { font-size: 11px; color: #6b6b65; margin-top: 2px; white-space: nowrap; }
+.pending-actions-footer { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── Auto-actions toggle in modal ────────────────────────────────────────── */
+.auto-actions-toggle {
+  background: #EAF3DE;
+  border: 1px solid rgba(29,158,117,0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.toggle-switch-wrap { position: relative; flex-shrink: 0; }
+.toggle-switch-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-switch {
+  display: block;
+  width: 36px;
+  height: 20px;
+  background: #ccc;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background .2s;
+  position: relative;
+}
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-switch-wrap input:checked + .toggle-switch { background: #1D9E75; }
+.toggle-switch-wrap input:checked + .toggle-switch::after { transform: translateX(16px); }
+.toggle-title { font-size: 13px; font-weight: 600; color: #1a1a18; }
+.toggle-sub { font-size: 11px; color: #6b6b65; margin-top: 2px; }
+
+/* ── Generating actions banner ───────────────────────────────────────────── */
+.generating-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #E6F1FB;
+  border: 1px solid rgba(55,138,221,0.2);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #185FA5;
+  margin-bottom: 16px;
+}
+.loading-spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(55,138,221,0.3);
+  border-top-color: #378ADD;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+.md-check { color: #3B6D11; margin: 2px 0; }
