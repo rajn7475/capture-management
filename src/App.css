@@ -591,3 +591,59 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
   flex-shrink: 0;
 }
 .md-check { color: #3B6D11; margin: 2px 0; }
+
+/* ── Ark Logo ─────────────────────────────────────────────────────────────── */
+.sidebar-logo-img {
+  width: 68px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  margin-bottom: 0;
+}
+
+/* ── Team Management ─────────────────────────────────────────────────────── */
+.team-view { max-width: 900px; }
+.role-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.role-card { background: var(--surface,#fff); border: 1px solid rgba(0,0,0,0.09); border-radius: 10px; padding: 14px 16px; }
+.role-badge-wrap { margin-bottom: 6px; }
+.role-desc { font-size: 12px; color: #6b6b65; line-height: 1.5; }
+.invite-success { background: #EAF3DE; border: 1px solid rgba(29,158,117,0.2); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #3B6D11; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.invite-form { background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.invite-form-title { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: #1a1a18; }
+.role-radio-group { display: flex; flex-direction: column; gap: 8px; }
+.role-radio { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; cursor: pointer; transition: all .12s; }
+.role-radio input { margin-top: 3px; accent-color: #1a1a18; flex-shrink: 0; }
+.role-radio.selected { border-color: #1a1a18; background: #f7f6f3; }
+.role-radio-label { font-size: 13px; font-weight: 500; color: #1a1a18; }
+.role-radio-desc { font-size: 11px; color: #6b6b65; margin-top: 2px; }
+.invite-note { font-size: 12px; color: #6b6b65; background: #f7f6f3; border-radius: 7px; padding: 10px 12px; margin-top: 12px; line-height: 1.5; }
+.team-table-wrap { background: #fff; border: 1px solid rgba(0,0,0,0.09); border-radius: 12px; overflow: hidden; }
+.team-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.team-table th { text-align: left; font-size: 11px; color: #9b9b94; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.08); background: #fafaf8; }
+.team-table td { padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.06); vertical-align: middle; }
+.team-table tr:last-child td { border-bottom: none; }
+.team-table tr:hover td { background: #fafaf8; }
+.member-cell { display: flex; align-items: center; gap: 10px; }
+.member-avatar { width: 32px; height: 32px; border-radius: 50%; background: #E6F1FB; color: #185FA5; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.member-name { font-size: 13px; font-weight: 500; color: #1a1a18; }
+.you-badge { display: inline-block; font-size: 10px; background: #f1efe8; color: #6b6b65; padding: 1px 6px; border-radius: 10px; margin-left: 5px; font-weight: 400; }
+.role-select { font-size: 12px; padding: 5px 8px; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; background: #fafaf8; color: #1a1a18; cursor: pointer; }
+.remove-btn { font-size: 12px; padding: 4px 10px; border: 1px solid rgba(226,75,74,0.25); border-radius: 6px; background: #FCEBEB; color: #A32D2D; cursor: pointer; }
+.remove-btn:hover { background: #f5d5d5; }
+
+/* ── Action items with assignee + due ───────────────────────────────────── */
+.action-meta-row { display: flex; align-items: center; gap: 10px; margin-top: 3px; flex-wrap: wrap; }
+.action-due { font-size: 11px; color: #9b9b94; }
+.action-due.late { color: #A32D2D; font-weight: 500; }
+.action-assignee { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #6b6b65; }
+.action-assignee-avatar { width: 16px; height: 16px; border-radius: 50%; background: #E6F1FB; color: #185FA5; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 600; flex-shrink: 0; }
+
+/* ── Add action form full ────────────────────────────────────────────────── */
+.add-action-form-full { margin-top: 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 9px; overflow: hidden; }
+.add-action-input { width: 100%; font-size: 13px; padding: 10px 12px; border: none; border-bottom: 1px solid rgba(0,0,0,0.08); background: #fafaf8; color: #1a1a18; font-family: inherit; }
+.add-action-input:focus { outline: none; background: #fff; }
+.add-action-input::placeholder { color: #9b9b94; }
+.add-action-meta { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f7f6f3; flex-wrap: wrap; }
+.add-action-field { display: flex; flex-direction: column; gap: 2px; }
+.add-action-field label { font-size: 10px; color: #9b9b94; text-transform: uppercase; letter-spacing: .04em; font-weight: 500; }
+.add-action-field input, .add-action-field select { font-size: 12px; padding: 4px 7px; border: 1px solid rgba(0,0,0,0.12); border-radius: 6px; background: #fff; color: #1a1a18; }
