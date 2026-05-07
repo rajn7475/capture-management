@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { getChatHistory, saveChatMessage, clearChatHistory } from '../lib/supabase'
 import { sendMessage, sendMessageWithFile, buildSystemPrompt, QUICK_PROMPTS } from '../lib/claude'
 
-export default function ClaudeChat({ opp, userId, today, onAddGeneratedActions }) {
+export default function ClaudeChat({ opp, userId, today, companyContext, onAddGeneratedActions }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -11,7 +11,7 @@ export default function ClaudeChat({ opp, userId, today, onAddGeneratedActions }
   const [uploadedFile, setUploadedFile] = useState(null)
   const bottomRef = useRef(null)
   const fileRef = useRef(null)
-  const systemPrompt = buildSystemPrompt(opp)
+  const systemPrompt = buildSystemPrompt(opp, companyContext)
 
   // Load chat history
   useEffect(() => {
