@@ -1,19 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { signOut, getProfile, getOpportunities, upsertOpportunity, deleteOpportunity, getActions, upsertAction, deleteAction, getNote, upsertNote } from '../lib/supabase'
+import { signOut, getProfile, getOpportunities, upsertOpportunity, deleteOpportunity,
+  getActions, upsertAction, deleteAction, getNote, upsertNote,
+  getCompanyDocs, downloadDoc } from '../lib/supabase'
 import OppCard from '../components/OppCard'
 import OppModal from '../components/OppModal'
 import MorningBrief from '../components/MorningBrief'
 import ContactsView from '../components/ContactsView'
+import KanbanView from '../components/KanbanView'
+import CompanySettings from '../pages/CompanySettings'
 
 export default function Dashboard({ session }) {
   const [view, setView] = useState('brief')
   const [opps, setOpps] = useState([])
   const [actions, setActions] = useState([])
-  const [notes, setNotes] = useState({}) // { oppId: content }
+  const [notes, setNotes] = useState({})
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editOpp, setEditOpp] = useState(null)
+  const [pipelineView, setPipelineView] = useState('list') // 'list' | 'kanban'
+  const [companyContext, setCompanyContext] = useState(null)
   const user = session.user
 
   const load = useCallback(async () => {
@@ -27,9 +33,46 @@ export default function Dashboard({ session }) {
     if (actionsRes.data) setActions(actionsRes.data)
     if (profileRes.data) setProfile(profileRes.data)
     setLoading(false)
+
+    // Load company context for Claude in background
+    loadCompanyContext()
   }, [user.id])
 
   useEffect(() => { load() }, [load])
+
+  // Load company docs and build context string for Claude
+  async function loadCompanyContext() {
+    const { data: docs } = await getCompanyDocs()
+    if (!docs || docs.length === 0) return
+
+    const context = { capability: '', pastPerformance: '', partners: '' }
+
+    for (const doc of docs) {
+      try {
+        const { data: blob } = await downloadDoc(doc.file_path)
+        if (!blob) continue
+
+        // For PDFs and text files we can read as text
+        // Note: For actual PDF parsing server-side would be better
+        // For now we store doc metadata and let Claude know what exists
+        const meta = `Document: ${doc.name}\nFile: ${doc.file_name}\n${doc.description ? 'Description: ' + doc.description : ''}\n`
+
+        if (doc.doc_type === 'capability') {
+          context.capability += meta + '\n'
+        } else if (doc.doc_type === 'past_performance') {
+          context.pastPerformance += meta + '\n'
+        } else if (doc.doc_type === 'partner') {
+          context.partners += `Partner: ${doc.partner_name || doc.name}\n${doc.partner_naics ? 'NAICS: ' + doc.partner_naics + '\n' : ''}${doc.partner_certs ? 'Certifications: ' + doc.partner_certs + '\n' : ''}${doc.description ? 'Description: ' + doc.description + '\n' : ''}\n`
+        }
+      } catch (e) {
+        // Skip docs that can't be read
+      }
+    }
+
+    if (context.capability || context.pastPerformance || context.partners) {
+      setCompanyContext(context)
+    }
+  }
 
   const today = new Date().toISOString().slice(0, 10)
   const weekEnd = (() => { const d = new Date(today); d.setDate(d.getDate() + (7 - d.getDay())); return d.toISOString().slice(0, 10) })()
@@ -92,7 +135,6 @@ export default function Dashboard({ session }) {
     setNotes(prev => ({ ...prev, [oppId]: content }))
   }
 
-  // ── AI-generated actions ──────────────────────────────────────────────────
   async function handleAddGeneratedActions(oppId, items) {
     const newActions = []
     for (const item of items) {
@@ -133,7 +175,12 @@ export default function Dashboard({ session }) {
               Pipeline
               <span className="nav-count">{opps.length}</span>
             </button>
+            <button className={`nav-item ${view === 'kanban' ? 'active' : ''}`} onClick={() => setView('kanban')}>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="2" width="4" height="12" rx="1" /><rect x="6" y="2" width="4" height="8" rx="1" /><rect x="11" y="2" width="4" height="10" rx="1" /></svg>
+              Board View
+            </button>
           </div>
+
           <div className="nav-section">
             <div className="nav-label">Views</div>
             <button className={`nav-item ${view === 'contacts' ? 'active' : ''}`} onClick={() => setView('contacts')}>
@@ -141,6 +188,16 @@ export default function Dashboard({ session }) {
               Contacts
             </button>
           </div>
+
+          {isAdmin && (
+            <div className="nav-section">
+              <div className="nav-label">Admin</div>
+              <button className={`nav-item ${view === 'company' ? 'active' : ''}`} onClick={() => setView('company')}>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="7" width="12" height="7" rx="1" /><path d="M5 7V5a3 3 0 016 0v2" strokeLinecap="round" /></svg>
+                Company Settings
+              </button>
+            </div>
+          )}
         </nav>
 
         <div className="sidebar-user">
@@ -170,9 +227,11 @@ export default function Dashboard({ session }) {
                 <h1 className="page-title">Opportunity Pipeline</h1>
                 <p className="page-sub">{opps.length} opportunities · {fmtVal(totalVal)} total value</p>
               </div>
-              {isAdmin && (
-                <button className="btn primary" onClick={() => { setEditOpp(null); setShowModal(true) }}>+ Add Opportunity</button>
-              )}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {isAdmin && (
+                  <button className="btn primary" onClick={() => { setEditOpp(null); setShowModal(true) }}>+ Add Opportunity</button>
+                )}
+              </div>
             </div>
 
             <div className="stats-row">
@@ -194,7 +253,6 @@ export default function Dashboard({ session }) {
               <div className="empty-state">
                 <p>No opportunities yet.</p>
                 {isAdmin && <button className="btn primary" onClick={() => setShowModal(true)}>Add your first opportunity</button>}
-                {!isAdmin && <p className="empty-sub">Your admin will add opportunities for the team.</p>}
               </div>
             ) : (
               opps.map(opp => (
@@ -202,6 +260,7 @@ export default function Dashboard({ session }) {
                   myActions={actions.filter(a => a.opportunity_id === opp.id)}
                   noteContent={notes[opp.id]}
                   today={today} weekEnd={weekEnd} isAdmin={isAdmin} fmtVal={fmtVal}
+                  companyContext={companyContext}
                   onEdit={() => { setEditOpp(opp); setShowModal(true) }}
                   onDelete={() => handleDeleteOpp(opp.id)}
                   onStageChange={stage => handleStageChange(opp.id, stage)}
@@ -217,7 +276,19 @@ export default function Dashboard({ session }) {
           </>
         )}
 
+        {view === 'kanban' && (
+          <KanbanView
+            opps={opps}
+            fmtVal={fmtVal}
+            isAdmin={isAdmin}
+            onStageChange={handleStageChange}
+            onEdit={opp => { setEditOpp(opp); setShowModal(true) }}
+          />
+        )}
+
         {view === 'contacts' && <ContactsView opps={opps} />}
+
+        {view === 'company' && <CompanySettings isAdmin={isAdmin} />}
       </main>
 
       {showModal && (
