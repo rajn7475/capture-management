@@ -3,11 +3,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { messages, system } = req.body
+  const { messages, system, mode } = req.body
 
   if (!messages || !system) {
     return res.status(400).json({ error: 'Missing messages or system prompt' })
   }
+
+  const finalSystem = mode === 'extract_actions'
+    ? system + `\n\nIMPORTANT: Your response must be valid JSON only — no prose, no markdown.
+Return an array of action objects:
+[{ "text": "action description", "due_date": "YYYY-MM-DD" }, ...]
+Generate 5-8 specific, executable capture actions for this opportunity.
+Set realistic due dates starting from today. Return ONLY the JSON array.`
+    : system
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -20,7 +28,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
         max_tokens: 2048,
-        system,
+        system: finalSystem,
         messages
       })
     })
@@ -31,7 +39,19 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json()
-    return res.status(200).json({ content: data.content[0].text })
+    const content = data.content[0].text
+
+    if (mode === 'extract_actions') {
+      try {
+        const clean = content.replace(/```json|```/g, '').trim()
+        const actions = JSON.parse(clean)
+        return res.status(200).json({ content, actions })
+      } catch {
+        return res.status(200).json({ content, actions: [] })
+      }
+    }
+
+    return res.status(200).json({ content })
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Server error' })
   }
