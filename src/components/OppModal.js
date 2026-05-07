@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 
 const STAGES = ['Identified','Qualifying','Capture','Bid/No-Bid','Proposing','Submitted','Won','Lost']
 
-export default function OppModal({ opp, onSave, onClose }) {
+export default function OppModal({ opp, onSave, onClose, companyContext }) {
   const [form, setForm] = useState({
     id: opp?.id || undefined,
     title: opp?.title || '',
@@ -22,6 +22,7 @@ export default function OppModal({ opp, onSave, onClose }) {
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [autoActions, setAutoActions] = useState(true) // auto-generate actions on create
 
   function set(field, val) { setForm(prev => ({ ...prev, [field]: val })) }
 
@@ -32,9 +33,17 @@ export default function OppModal({ opp, onSave, onClose }) {
       const [name, role, email] = line.split('|').map(s => s.trim())
       return { name: name || '', role: role || '', email: email || '' }
     }).filter(c => c.name)
-    await onSave({ ...form, value: Number(form.value) || 0, contacts })
+
+    await onSave({
+      ...form,
+      value: Number(form.value) || 0,
+      contacts,
+      autoGenerateActions: autoActions && !opp // only auto-generate for new opps
+    })
     setSaving(false)
   }
+
+  const isNew = !opp
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -104,13 +113,32 @@ export default function OppModal({ opp, onSave, onClose }) {
             <textarea value={contactsText} onChange={e => setContactsText(e.target.value)} rows={3}
               placeholder={'Jenna Highfill | CO | jenna.highfill@usda.gov\nRoxanne Lane | USDA SBO | roxanne.lane@usda.gov'} />
           </div>
+
+          {/* Auto-generate actions toggle — only show for new opportunities */}
+          {isNew && (
+            <div className="auto-actions-toggle">
+              <label className="toggle-label">
+                <div className="toggle-switch-wrap">
+                  <input type="checkbox" checked={autoActions} onChange={e => setAutoActions(e.target.checked)} />
+                  <span className="toggle-switch" />
+                </div>
+                <div>
+                  <div className="toggle-title">✅ Auto-generate capture actions</div>
+                  <div className="toggle-sub">Claude will create 5-6 tailored action items when this opportunity is saved</div>
+                </div>
+              </label>
+            </div>
+          )}
+
           {error && <div className="form-error">{error}</div>}
         </div>
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : opp ? 'Save Changes' : 'Add Opportunity'}
+            {saving
+              ? (isNew && autoActions ? 'Saving & generating actions…' : 'Saving…')
+              : (opp ? 'Save Changes' : 'Add Opportunity')}
           </button>
         </div>
       </div>
