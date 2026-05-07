@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { signOut, getProfile, getOpportunities, upsertOpportunity, deleteOpportunity,
-  getActions, upsertAction, deleteAction, getNote, upsertNote,
-  getCompanyDocs, downloadDoc } from '../lib/supabase'
+  getActions, upsertAction, deleteAction, getNote, upsertNote, getCompanyDocs } from '../lib/supabase'
+import { generateActionsForOpp } from '../lib/claude'
 import OppCard from '../components/OppCard'
 import OppModal from '../components/OppModal'
 import MorningBrief from '../components/MorningBrief'
@@ -18,60 +18,37 @@ export default function Dashboard({ session }) {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editOpp, setEditOpp] = useState(null)
-  const [pipelineView, setPipelineView] = useState('list') // 'list' | 'kanban'
   const [companyContext, setCompanyContext] = useState(null)
+  const [generatingActions, setGeneratingActions] = useState(false)
   const user = session.user
 
   const load = useCallback(async () => {
     setLoading(true)
     const [oppsRes, actionsRes, profileRes] = await Promise.all([
-      getOpportunities(),
-      getActions(user.id),
-      getProfile(user.id)
+      getOpportunities(), getActions(user.id), getProfile(user.id)
     ])
     if (oppsRes.data) setOpps(oppsRes.data)
     if (actionsRes.data) setActions(actionsRes.data)
     if (profileRes.data) setProfile(profileRes.data)
     setLoading(false)
-
-    // Load company context for Claude in background
     loadCompanyContext()
   }, [user.id])
 
   useEffect(() => { load() }, [load])
 
-  // Load company docs and build context string for Claude
   async function loadCompanyContext() {
     const { data: docs } = await getCompanyDocs()
     if (!docs || docs.length === 0) return
-
     const context = { capability: '', pastPerformance: '', partners: '' }
-
     for (const doc of docs) {
-      try {
-        const { data: blob } = await downloadDoc(doc.file_path)
-        if (!blob) continue
-
-        // For PDFs and text files we can read as text
-        // Note: For actual PDF parsing server-side would be better
-        // For now we store doc metadata and let Claude know what exists
-        const meta = `Document: ${doc.name}\nFile: ${doc.file_name}\n${doc.description ? 'Description: ' + doc.description : ''}\n`
-
-        if (doc.doc_type === 'capability') {
-          context.capability += meta + '\n'
-        } else if (doc.doc_type === 'past_performance') {
-          context.pastPerformance += meta + '\n'
-        } else if (doc.doc_type === 'partner') {
-          context.partners += `Partner: ${doc.partner_name || doc.name}\n${doc.partner_naics ? 'NAICS: ' + doc.partner_naics + '\n' : ''}${doc.partner_certs ? 'Certifications: ' + doc.partner_certs + '\n' : ''}${doc.description ? 'Description: ' + doc.description + '\n' : ''}\n`
-        }
-      } catch (e) {
-        // Skip docs that can't be read
+      const meta = `Document: ${doc.name}\n${doc.description ? 'Description: ' + doc.description : ''}\n`
+      if (doc.doc_type === 'capability') context.capability += meta + '\n'
+      else if (doc.doc_type === 'past_performance') context.pastPerformance += meta + '\n'
+      else if (doc.doc_type === 'partner') {
+        context.partners += `Partner: ${doc.partner_name || doc.name}\n${doc.partner_naics ? 'NAICS: ' + doc.partner_naics + '\n' : ''}${doc.partner_certs ? 'Certs: ' + doc.partner_certs + '\n' : ''}${doc.description ? 'About: ' + doc.description + '\n' : ''}\n`
       }
     }
-
-    if (context.capability || context.pastPerformance || context.partners) {
-      setCompanyContext(context)
-    }
+    if (context.capability || context.pastPerformance || context.partners) setCompanyContext(context)
   }
 
   const today = new Date().toISOString().slice(0, 10)
@@ -85,13 +62,39 @@ export default function Dashboard({ session }) {
     return '$' + n
   }
 
-  // ── Opp handlers ──────────────────────────────────────────────────────────
   async function handleSaveOpp(opp) {
-    const { data, error } = await upsertOpportunity(opp)
+    const { autoGenerateActions, ...oppData } = opp
+    const { data, error } = await upsertOpportunity(oppData)
     if (!error && data) {
-      setOpps(prev => opp.id ? prev.map(o => o.id === opp.id ? data : o) : [data, ...prev])
+      const isNew = !oppData.id
+      setOpps(prev => isNew ? [data, ...prev] : prev.map(o => o.id === oppData.id ? data : o))
+
+      // Auto-generate actions for new opportunities
+      if (isNew && autoGenerateActions) {
+        setShowModal(false)
+        setEditOpp(null)
+        setGeneratingActions(true)
+        try {
+          const generatedActions = await generateActionsForOpp(data, companyContext)
+          for (const action of generatedActions) {
+            const { data: savedAction } = await upsertAction({
+              user_id: user.id,
+              opportunity_id: data.id,
+              text: action.text,
+              due_date: action.due_date || null,
+              done: false
+            })
+            if (savedAction) setActions(prev => [...prev, savedAction])
+          }
+        } catch (e) {
+          console.error('Failed to generate actions:', e)
+        }
+        setGeneratingActions(false)
+        return
+      }
     }
-    setShowModal(false); setEditOpp(null)
+    setShowModal(false)
+    setEditOpp(null)
   }
 
   async function handleDeleteOpp(id) {
@@ -105,7 +108,6 @@ export default function Dashboard({ session }) {
     setOpps(prev => prev.map(o => o.id === id ? { ...o, stage } : o))
   }
 
-  // ── Action handlers ───────────────────────────────────────────────────────
   async function handleAddAction(oppId, text, dueDate) {
     const { data } = await upsertAction({ user_id: user.id, opportunity_id: oppId, text, due_date: dueDate || null, done: false })
     if (data) setActions(prev => [...prev, data])
@@ -123,7 +125,6 @@ export default function Dashboard({ session }) {
     setActions(prev => prev.filter(a => a.id !== actionId))
   }
 
-  // ── Note handlers ─────────────────────────────────────────────────────────
   async function handleLoadNote(oppId) {
     if (notes[oppId] !== undefined) return
     const { data } = await getNote(user.id, oppId)
@@ -162,7 +163,6 @@ export default function Dashboard({ session }) {
           </div>
           <span className="logo-sub">Federal BD Pipeline</span>
         </div>
-
         <nav className="sidebar-nav">
           <div className="nav-section">
             <div className="nav-label">Workspace</div>
@@ -180,7 +180,6 @@ export default function Dashboard({ session }) {
               Board View
             </button>
           </div>
-
           <div className="nav-section">
             <div className="nav-label">Views</div>
             <button className={`nav-item ${view === 'contacts' ? 'active' : ''}`} onClick={() => setView('contacts')}>
@@ -188,7 +187,6 @@ export default function Dashboard({ session }) {
               Contacts
             </button>
           </div>
-
           {isAdmin && (
             <div className="nav-section">
               <div className="nav-label">Admin</div>
@@ -199,7 +197,6 @@ export default function Dashboard({ session }) {
             </div>
           )}
         </nav>
-
         <div className="sidebar-user">
           <div className="user-avatar">{userInitials}</div>
           <div className="user-info">
@@ -213,6 +210,14 @@ export default function Dashboard({ session }) {
       </aside>
 
       <main className="main">
+        {/* Generating actions banner */}
+        {generatingActions && (
+          <div className="generating-banner">
+            <div className="loading-spinner-sm" />
+            Claude is generating capture actions for your new opportunity…
+          </div>
+        )}
+
         {view === 'brief' && (
           <MorningBrief opps={opps} actions={actions} today={today} weekEnd={weekEnd}
             userName={userName} fmtVal={fmtVal}
@@ -221,19 +226,16 @@ export default function Dashboard({ session }) {
         )}
 
         {view === 'pipeline' && (
-          <>
+          <div className="pipeline-view">
             <div className="page-header">
               <div>
                 <h1 className="page-title">Opportunity Pipeline</h1>
                 <p className="page-sub">{opps.length} opportunities · {fmtVal(totalVal)} total value</p>
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {isAdmin && (
-                  <button className="btn primary" onClick={() => { setEditOpp(null); setShowModal(true) }}>+ Add Opportunity</button>
-                )}
-              </div>
+              {isAdmin && (
+                <button className="btn primary" onClick={() => { setEditOpp(null); setShowModal(true) }}>+ Add Opportunity</button>
+              )}
             </div>
-
             <div className="stats-row">
               {[
                 { label: 'Opportunities', val: opps.length, sub: 'in pipeline' },
@@ -248,7 +250,6 @@ export default function Dashboard({ session }) {
                 </div>
               ))}
             </div>
-
             {opps.length === 0 ? (
               <div className="empty-state">
                 <p>No opportunities yet.</p>
@@ -273,26 +274,22 @@ export default function Dashboard({ session }) {
                 />
               ))
             )}
-          </>
+          </div>
         )}
 
         {view === 'kanban' && (
-          <KanbanView
-            opps={opps}
-            fmtVal={fmtVal}
-            isAdmin={isAdmin}
+          <KanbanView opps={opps} fmtVal={fmtVal} isAdmin={isAdmin}
             onStageChange={handleStageChange}
-            onEdit={opp => { setEditOpp(opp); setShowModal(true) }}
-          />
+            onEdit={opp => { setEditOpp(opp); setShowModal(true) }} />
         )}
 
         {view === 'contacts' && <ContactsView opps={opps} />}
-
         {view === 'company' && <CompanySettings isAdmin={isAdmin} />}
       </main>
 
       {showModal && (
-        <OppModal opp={editOpp} onSave={handleSaveOpp} onClose={() => { setShowModal(false); setEditOpp(null) }} />
+        <OppModal opp={editOpp} onSave={handleSaveOpp} onClose={() => { setShowModal(false); setEditOpp(null) }}
+          companyContext={companyContext} />
       )}
     </div>
   )
