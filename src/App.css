@@ -482,9 +482,9 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 .b-gray { background: #F1EFE8; color: #5F5E5A; }
 
 /* ── View width constraints ───────────────────────────────────────────────── */
-.pipeline-view, .brief-view, .contacts-view-wrap { max-width: 960px; }
+.pipeline-view, .brief-view, .contacts-view-wrap { width: 100%; }
 .kanban-view { width: 100%; }
-.settings-view { max-width: 900px; }
+.settings-view { max-width: 860px; }
 
 /* ── Pending Actions Panel ────────────────────────────────────────────────── */
 .pending-actions-panel {
@@ -594,7 +594,7 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 
 /* ── Ark Logo ─────────────────────────────────────────────────────────────── */
 .sidebar-logo-img {
-  width: 68px;
+  width: 90px;
   height: auto;
   display: block;
   object-fit: contain;
@@ -602,7 +602,7 @@ input, select, textarea { font-family: inherit; font-size: 13px; }
 }
 
 /* ── Team Management ─────────────────────────────────────────────────────── */
-.team-view { max-width: 900px; }
+.team-view { max-width: 860px; }
 .role-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
 .role-card { background: var(--surface,#fff); border: 1px solid rgba(0,0,0,0.09); border-radius: 10px; padding: 14px 16px; }
 .role-badge-wrap { margin-bottom: 6px; }
